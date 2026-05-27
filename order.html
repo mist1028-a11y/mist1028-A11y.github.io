@@ -25,19 +25,14 @@
     
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-        // ⚠️ 본인의 Supabase 정보로 주소와 키를 꼭 변경하세요!
+          
+    <script>
+        // ⚠️ 변수명을 sb로 변경하여 라이브러리 고유 이름(supabase)과의 충돌을 완벽히 차단합니다.
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-    <script>
-        // ⚠️ 변수명을 sb로 변경하여 라이브러리 고유 이름(supabase)과의 충돌을 완벽히 차단합니다.
-        const SUPABASE_URL = "YOUR_SUPABASE_URL";
-        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
