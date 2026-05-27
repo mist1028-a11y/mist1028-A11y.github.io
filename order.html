@@ -35,9 +35,9 @@
     
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-    <script>
         // ⚠️ 본인의 Supabase 정보로 주소와 키를 꼭 변경하세요!
         
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";

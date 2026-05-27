@@ -27,9 +27,10 @@
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
     <button class="reset-btn" onclick="clearData()">DB 전체 초기화</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
     <script>
-
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+    
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
 
