@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>통계</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h1>통계 현황</h1>
+
+<table>
+    <tr>
+        <th>메뉴</th>
+        <th>누적 주문수량</th>
+        <th>현재 판매수량</th>
+        <th>잔여수량</th>
+    </tr>
+
+    {% for item in menu %}
+    <tr>
+        <td>{{ item }}</td>
+        <td>{{ total_orders[item] }}</td>
+        <td>{{ total_sales[item] }}</td>
+        <td>{{ remain[item] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<div class="bottom-nav">
+    <a href="/">🏠 홈</a>
+    <a href="/order">📝 주문</a>
+    <a href="/sales">💰 판매</a>
+    <a href="/stats">📊 통계</a>
+</div>
+</body>
+</html>

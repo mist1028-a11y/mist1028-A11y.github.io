@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>판매 등록</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h1>판매 등록</h1>
+
+<form method="POST">
+
+<table>
+    <tr>
+        <th>메뉴</th>
+        <th>주문수량</th>
+        <th>판매수량</th>
+        <th>추가 판매</th>
+    </tr>
+
+    {% for item in menu %}
+    <tr>
+        <td>{{ item }}</td>
+        <td>{{ total_orders[item] }}</td>
+        <td>{{ total_sales[item] }}</td>
+        <td>
+            <input type="number" name="{{ item }}" min="0" value="0">
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<button type="submit">판매 저장</button>
+
+</form>
+<div class="bottom-nav">
+    <a href="/">🏠 홈</a>
+    <a href="/order">📝 주문</a>
+    <a href="/sales">💰 판매</a>
+    <a href="/stats">📊 통계</a>
+</div>
+</body>
+</html>
