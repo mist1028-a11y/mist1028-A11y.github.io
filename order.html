@@ -2,79 +2,124 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>주문 등록</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
-        .menu-item { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
-        input[type="number"] { width: 60px; padding: 5px; text-align: center; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        .back-link { display: block; text-align: center; margin-top: 15px; color: #6c757d; text-decoration: none; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; background-color: #f8f9fa; }
+        h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
+        .menu-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 12px; 
+            align-items: center; 
+            background: white; 
+            padding: 10px 15px; 
+            border-radius: 6px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        .menu-item label { font-weight: bold; color: #495057; }
+        input[type="number"] { width: 70px; padding: 6px; text-align: center; border: 1px solid #ced4da; border-radius: 4px; font-size: 16px; }
+        button { width: 100%; padding: 14px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        button:hover { background-color: #0056b3; }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #6c757d; text-decoration: none; font-size: 15px; }
     </style>
 </head>
 <body>
-    <h2>📝 주문 등록 (Supabase DB)</h2>
+
+    <h2>🎪 실시간 주문 등록</h2>
+    
     <form id="orderForm">
         <div id="menuContainer"></div>
-        <button type="submit">주문 완료</button>
+        <button type="submit">주문 완료 (DB 전송)</button>
     </form>
-    <a href="index.html" class="back-link">메인으로 돌아가기</a>
+    
+    <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-  
 
+    <script>
+        // ⚠️ 본인의 Supabase 정보로 주소와 키를 꼭 변경하세요!
+        
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
 
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
+        // 정산 대상 메뉴판 데이터
+        const MENU = { 
+            "떡볶이": 4000, 
+            "잔치국수": 5000, 
+            "김치전": 6000, 
+            "마른안주": 10000, 
+            "골뱅이무침": 20000, 
+            "콜팝": 5000, 
+            "컵라면": 2000, 
+            "캔맥주": 3000, 
+            "막걸리": 3000, 
+            "음료": 2000 
+        };
 
+        // [화면 초기 세팅] MENU 객체 구조를 기반으로 각각의 입력 폼 생성하기
         const container = document.getElementById('menuContainer');
         for (const [name, price] of Object.entries(MENU)) {
             container.innerHTML += `
                 <div class="menu-item">
-                    <label>${name} (${price.toLocaleString()}원)</label>
+                    <label>${name} <span style="font-size:12px; color:#888;">(${price.toLocaleString()}원)</span></label>
                     <input type="number" name="${name}" min="0" value="0">
                 </div>
             `;
         }
 
+        // [주문 처리 버튼 액션]
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+            e.preventDefault(); // 페이지 새로고침 방지
             
-            let orderData = { time: new Date().toLocaleString('ko-KR') };
+            let current_time = new Date().toLocaleString('ko-KR');
+            let orderData = { time: current_time };
             let hasItems = false;
 
+            // 1. 화면에 배치된 각각의 입력창에서 입력된 수량을 차례대로 읽어오기
             for (const menu in MENU) {
                 let qty = parseInt(document.getElementsByName(menu)[0].value) || 0;
-                orderData[menu] = qty;
-                if (qty > 0) hasItems = true;
+                orderData[menu] = qty; // 각 메뉴명 컬럼에 수량 대입
+                
+                if (qty > 0) hasItems = true; // 하나라도 주문 숫자가 있으면 인정
             }
 
-            if (!hasItems) { alert("수량을 1개 이상 입력해주세요."); return; }
+            // 예외처리: 아무것도 입력하지 않고 버튼을 누른 경우
+            if (!hasItems) { 
+                alert("수량을 1개 이상 입력해주세요."); 
+                return; 
+            }
 
-            // 1. 개별 가계부 테이블(hope)에 주문내역 추가
+            // 2. [DB 작업 1] hope 테이블(개별 주문 일지)에 새로운 행으로 저장
             const { error: insertError } = await supabase.from('hope').insert([orderData]);
-            if (insertError) { alert("주문 기록 실패: " + insertError.message); return; }
+            if (insertError) { 
+                alert("주문 기록 실패: " + insertError.message); 
+                return; 
+            }
 
-            // 2. 누적 정산 테이블(hope2)에서 기존 수량을 가져와서 더해줌 (time은 건드리지 않음)
+            // 3. [DB 작업 2] hope2 테이블(id=1인 누적 정산판 행)에 기존 주문량 + 새 주문량 합산 누적
+            // 먼저 기존에 쌓여있던 누적 테이블 수치를 조회합니다.
             const { data: currentHope2 } = await supabase.from('hope2').select('*').eq('id', 1).single();
             
             let finalUpdate = {};
             for (const menu in MENU) {
                 let currentQty = currentHope2 ? (currentHope2[`주문_${menu}`] || 0) : 0;
                 let newQty = parseInt(document.getElementsByName(menu)[0].value) || 0;
+                
+                // 수퍼베이스 규칙에 맞게 '주문_메뉴명' 컬럼에 누적치 계산
                 finalUpdate[`주문_${menu}`] = currentQty + newQty;
             }
 
+            // 계산된 누적 데이터를 hope2 테이블의 id=1번 자리에 덮어쓰기(Update) 합니다.
             const { error: updateError } = await supabase.from('hope2').update(finalUpdate).eq('id', 1);
 
             if (updateError) {
                 alert("누적 DB 반영 실패: " + updateError.message);
             } else {
                 alert("주문 등록 및 누적 합산이 완료되었습니다!");
-                location.href = "stats.html";
+                location.href = "stats.html"; // 등록 완료 후 자동으로 현황판 화면으로 이동
             }
         });
     </script>
