@@ -2,21 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>판매 등록</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; }
         h2 { text-align: center; color: #212529; margin-bottom: 25px; }
-        .menu-item { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 12px; 
-            align-items: center; 
-            background: white; 
-            padding: 10px 15px; 
-            border-radius: 6px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-        }
+        .menu-item { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; background: white; padding: 10px 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .menu-item label { font-weight: bold; color: #495057; }
         input[type="number"] { width: 70px; padding: 6px; text-align: center; border: 1px solid #ced4da; border-radius: 4px; font-size: 16px; }
         table { width: 100%; border-collapse: collapse; margin-top: 25px; font-size: 15px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -30,11 +20,11 @@
 </head>
 <body>
 
-    <h2>🎪 실시간 판매 등록 (출고)</h2>
+    <h2>💰 일일호프 판매 등록 (출고)</h2>
     
     <form id="salesForm">
         <div id="menuContainer"></div>
-        <button type="submit">판매 완료 (DB 누적 및 시간 갱신)</button>
+        <button type="submit">판매 완료 (DB 반영)</button>
     </form>
 
     <h3>📊 현재까지 누적 요약 현황</h3>
@@ -46,35 +36,21 @@
                 <th>현재까지 누적 판매량</th>
             </tr>
         </thead>
-        <tbody id="summaryTableBody">
-            </tbody>
+        <tbody id="summaryTableBody"></tbody>
     </table>
 
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
 
-    <script>
-        // ⚠️ 본인의 Supabase 정보로 주소와 키를 꼭 변경하세요!
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
-        
+    <script>
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const MENU = { 
-            "떡볶이": 4000, 
-            "잔치국수": 5000, 
-            "김치전": 6000, 
-            "마른안주": 10000, 
-            "골뱅이무침": 20000, 
-            "콜팝": 5000, 
-            "컵라면": 2000, 
-            "캔맥주": 3000, 
-            "막걸리": 3000, 
-            "음료": 2000 
-        };
+        const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        // [화면 초기 세팅 1] MENU 객체 데이터를 기반으로 각각의 판매 입력창 생성
+        // 판매 입력 폼 생성
         const container = document.getElementById('menuContainer');
         for (const menu in MENU) {
             container.innerHTML += `
@@ -85,18 +61,15 @@
             `;
         }
 
-        // [화면 초기 세팅 2] 현재 DB(hope2 테이블 id=1)에 기록된 실시간 수량을 가져와 하단 표에 노출
-        async function loadData() {
+        // 하단 누적 요약 데이터 불러오기 및 매칭
+        async function loadSummary() {
             const { data: summary } = await supabase.from('hope2').select('*').eq('id', 1).single();
-
             const tbody = document.getElementById('summaryTableBody');
             tbody.innerHTML = "";
 
             for (const menu in MENU) {
-                // 수퍼베이스 규칙에 정의한 대로 컬럼명 매칭해서 값을 읽어옴
                 let orderQty = summary ? (summary[`주문_${menu}`] || 0) : 0;
                 let salesQty = summary ? (summary[`판매_${menu}`] || 0) : 0;
-                
                 tbody.innerHTML += `
                     <tr>
                         <td><b>${menu}</b></td>
@@ -107,48 +80,39 @@
             }
         }
 
-        // [판매 완료 버튼 액션]
         document.getElementById('salesForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); // 페이지 새로고침 방지
+            e.preventDefault();
             
-            // 1. 현재 hope2 테이블(id=1)에 저장되어 있는 기존 수량 정보 긁어오기
-            const { data: currentHope2 } = await supabase.from('hope2').select('*').eq('id', 1).single();
+            const { data: currentSummary } = await supabase.from('hope2').select('*').eq('id', 1).single();
             
-            // 2. 최종 업데이트할 데이터 구성 (최신 판매 완료 시간 포함)
-            let finalUpdate = { 
-                time: new Date().toLocaleString('ko-KR') 
-            };
+            let currentTime = new Date().toLocaleString('ko-KR');
+            let finalUpdate = { time: currentTime };
             let hasItems = false;
 
-            // 3. 각각의 입력창에서 사용자가 입력한 판매 수량을 읽어와서 기존 DB 값에 더하기
+            // 판매_메뉴명 칸에만 누적 연산 진행
             for (const menu in MENU) {
-                let currentQty = currentHope2 ? (currentHope2[`판매_${menu}`] || 0) : 0; // 기존 누적 판매량
-                let inputQty = parseInt(document.getElementsByName(menu)[0].value) || 0; // 새로 입력한 판매량
+                let currentQty = currentSummary ? (currentSummary[`판매_${menu}`] || 0) : 0;
+                let inputQty = parseInt(document.getElementsByName(menu)[0].value) || 0;
                 
-                finalUpdate[`판매_${menu}`] = currentQty + inputQty; // 기존 값 + 새 값 계산하여 대입
-                
-                if (inputQty > 0) hasItems = true; // 하나라도 입력했는지 체크
+                finalUpdate[`판매_${menu}`] = currentQty + inputQty;
+                if (inputQty > 0) hasItems = true;
             }
 
-            // 예외처리: 판매 수량을 전혀 적지 않고 버튼을 누른 경우
-            if (!hasItems) { 
-                alert("판매된 수량을 입력해주세요."); 
-                return; 
+            if (!hasItems) {
+                alert("판매 수량을 입력해주세요.");
+                return;
             }
 
-            // 4. 계산 완료된 객체를 hope2 테이블의 id=1번 자리에 덮어쓰기(Update)
             const { error } = await supabase.from('hope2').update(finalUpdate).eq('id', 1);
-            
-            if (error) { 
-                alert("판매 데이터 누적 반영 실패: " + error.message); 
-            } else { 
-                alert("판매(출고) 누적 기록 및 시간이 업데이트되었습니다!"); 
-                location.href = "stats.html"; // 등록 후 재고를 즉시 확인하도록 현황판으로 이동
+            if (error) {
+                alert("판매 등록 실패: " + error.message);
+            } else {
+                alert("판매 내역이 누적 기록되었습니다.");
+                location.href = "stats.html";
             }
         });
 
-        // 페이지가 열릴 때 실시간 누적 현황표를 즉시 로드합니다.
-        loadData();
+        loadSummary();
     </script>
 </body>
 </html>

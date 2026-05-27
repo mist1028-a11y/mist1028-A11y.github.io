@@ -4,51 +4,54 @@
     <meta charset="UTF-8">
     <title>재고 및 정산 현황</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; background-color: #f8f9fa; }
+        h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
         th { background-color: #17a2b8; color: white; }
+        .plus { color: blue; font-weight: bold; }
         .minus { color: red; font-weight: bold; }
-        .plus { color: blue; }
-        .back-link { display: inline-block; margin-top: 20px; color: #6c757d; text-decoration: none; }
-        .reset-btn { float: right; margin-top: 20px; background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .back-link { display: inline-block; margin-top: 20px; color: #6c757d; text-decoration: none; font-size: 15px; }
     </style>
 </head>
 <body>
-    <h2>📊 재고 및 정산 현황 (Supabase 실시간 연동)</h2>
+
+    <h2>📊 재고 및 정산 현황 (실시간 정산판)</h2>
     
     <table>
         <thead>
-            <tr><th>메뉴명</th><th>총 주문량 (입고)</th><th>총 판매량 (출고)</th><th>미결제 잔여 수량</th></tr>
+            <tr>
+                <th>메뉴명</th>
+                <th>총 주문량 (입고)</th>
+                <th>총 판매량 (출고)</th>
+                <th>미결제 잔여 수량</th>
+            </tr>
         </thead>
         <tbody id="statsTableBody"></tbody>
     </table>
 
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
-    <button class="reset-btn" onclick="clearData()">DB 전체 초기화</button>
 
-  
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
-    
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
-
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        async function fetchStats() {
+        async function loadStats() {
+            // DB 연산 연동 없이 id=1번 단 한 행만 초고속 스캔
             const { data: summary } = await supabase.from('hope2').select('*').eq('id', 1).single();
-
             const tbody = document.getElementById('statsTableBody');
             tbody.innerHTML = "";
 
             for (const menu in MENU) {
                 let orderQty = summary ? (summary[`주문_${menu}`] || 0) : 0;
                 let salesQty = summary ? (summary[`판매_${menu}`] || 0) : 0;
+                let remain = orderQty - salesQty; // 잔여 수량 연산
                 
-                let remain = orderQty - salesQty;
                 let remainClass = remain > 0 ? 'plus' : (remain < 0 ? 'minus' : '');
 
                 tbody.innerHTML += `
@@ -62,25 +65,7 @@
             }
         }
 
-        async function clearData() {
-            if (confirm("정말로 모든 데이터를 초기화하시겠습니까? (hope 내역 삭제 및 hope2 수량/시간 리셋)")) {
-                // 1. hope 테이블 내역 전체 삭제
-                await supabase.from('hope').delete().gt('id', 0);
-                
-                // 2. hope2 테이블의 시간과 모든 수량 리셋
-                let resetData = { time: "" };
-                for (const menu in MENU) {
-                    resetData[`주문_${menu}`] = 0;
-                    resetData[`판매_${menu}`] = 0;
-                }
-                await supabase.from('hope2').update(resetData).eq('id', 1);
-
-                alert("모든 데이터가 초기화되었습니다.");
-                fetchStats();
-            }
-        }
-
-        fetchStats();
+        loadStats();
     </script>
 </body>
 </html>
