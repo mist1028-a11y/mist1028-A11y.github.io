@@ -12,18 +12,24 @@
     </style>
 </head>
 <body>
-    <h2>📝 주문 등록</h2>
+    <h2>📝 주문 등록 (Supabase DB)</h2>
     <form id="orderForm">
         <div id="menuContainer"></div>
         <button type="submit">주문 완료</button>
     </form>
     <a href="index.html" class="back-link">메인으로 돌아가기</a>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
-        // 공통 메뉴 데이터
+        // ⚠️ 본인의 Supabase 정보로 꼭 변경하세요!
+        const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        // 화면에 메뉴 출력
+        // 화면에 메뉴 생성
         const container = document.getElementById('menuContainer');
         for (const [name, price] of Object.entries(MENU)) {
             container.innerHTML += `
@@ -34,39 +40,35 @@
             `;
         }
 
-        // 폼 제출 이벤트 처리
-        document.getElementById('orderForm').addEventListener('submit', function(e) {
+        document.getElementById('orderForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // 기존 데이터 가져오기
-            let orders = JSON.parse(localStorage.getItem('orders')) || [];
-            
+            // DB 컬럼 형식에 맞춰 대입할 객체 생성
             let orderData = {
-                id: orders.length + 1,
-                datetime: new Date().toLocaleString('ko-KR'),
-                items: {}
+                time: new Date().toLocaleString('ko-KR')
             };
+            let hasItems = false;
 
-            // 입력된 수량 체크
             for (const menu in MENU) {
                 let qty = parseInt(document.getElementsByName(menu)[0].value) || 0;
-                if (qty > 0) {
-                    orderData.items[menu] = qty;
-                }
+                orderData[menu] = qty;
+                if (qty > 0) hasItems = true;
             }
 
-            // 아무것도 입력하지 않았다면 차단
-            if (Object.keys(orderData.items).length === 0) {
+            if (!hasItems) {
                 alert("수량을 1개 이상 입력해주세요.");
                 return;
             }
 
-            // 저장 후 이동
-            orders.push(orderData);
-            localStorage.setItem('orders', JSON.stringify(orders));
-            
-            alert("주문이 등록되었습니다.");
-            location.href = "stats.html";
+            // 1번 DB인 'hope' 테이블에 주문 데이터 한 행 추가
+            const { error } = await supabase.from('hope').insert([orderData]);
+
+            if (error) {
+                alert("주문 등록 실패: " + error.message);
+            } else {
+                alert("주문이 성공적으로 기록되었습니다!");
+                location.href = "stats.html";
+            }
         });
     </script>
 </body>

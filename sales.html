@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <h2>💰 판매 등록 및 누적 현황</h2>
+    <h2>💰 판매 등록 (Supabase DB)</h2>
     
     <form id="salesForm">
         <div id="menuContainer"></div>
@@ -25,84 +25,74 @@
     <h3>📊 현재까지 누적 요약</h3>
     <table>
         <thead>
-            <tr>
-                <th>메뉴명</th>
-                <th>누적 주문량</th>
-                <th>누적 판매량</th>
-            </tr>
+            <tr><th>메뉴명</th><th>누적 주문량</th><th>누적 판매량</th></tr>
         </thead>
         <tbody id="summaryTableBody"></tbody>
     </table>
 
     <a href="index.html" class="back-link">메인으로 돌아가기</a>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // ⚠️ 본인의 Supabase 정보로 꼭 변경하세요!
+        const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        // 로컬스토리지 데이터 로드 및 계산
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let sales = JSON.parse(localStorage.getItem('sales')) || [];
-
-        let totalOrders = {};
-        let totalSales = {};
-        for (const menu in MENU) {
-            totalOrders[menu] = 0;
-            totalSales[menu] = 0;
-        }
-
-        orders.forEach(o => { for (const [m, q] of Object.entries(o.items)) totalOrders[m] += q; });
-        sales.forEach(s => { for (const [m, q] of Object.entries(s.items)) totalSales[m] += q; });
-
-        // HTML 생성
         const container = document.getElementById('menuContainer');
-        const tbody = document.getElementById('summaryTableBody');
-
         for (const menu in MENU) {
-            // 입력 폼 생성
-            container.innerHTML += `
-                <div class="menu-item">
-                    <label>${menu}</label>
-                    <input type="number" name="${menu}" min="0" value="0">
-                </div>
-            `;
-            // 요약 테이블 생성
-            tbody.innerHTML += `
-                <tr>
-                    <td><b>${menu}</b></td>
-                    <td>${totalOrders[menu]}</td>
-                    <td>${totalSales[menu]}</td>
-                </tr>
-            `;
+            container.innerHTML += `<div class="menu-item"><label>${menu}</label><input type="number" name="${menu}" min="0" value="0"></div>`;
         }
 
-        // 폼 제출
-        document.getElementById('salesForm').addEventListener('submit', function(e) {
+        async function loadData() {
+            // hope(주문)와 sales(판매) 테이블 데이터를 각각 동시 로드
+            const { data: hopeRecords } = await supabase.from('hope').select('*');
+            const { data: salesRecords } = await supabase.from('sales').select('*');
+
+            let totalOrders = {}; let totalSales = {};
+            for (const menu in MENU) { totalOrders[menu] = 0; totalSales[menu] = 0; }
+
+            // 주문(hope) 데이터 누적 계산
+            hopeRecords?.forEach(row => {
+                for (const menu in MENU) { if (row[menu]) totalOrders[menu] += row[menu]; }
+            });
+
+            // 판매(sales) 데이터 누적 계산
+            salesRecords?.forEach(row => {
+                for (const menu in MENU) { if (row[menu]) totalSales[menu] += row[menu]; }
+            });
+
+            const tbody = document.getElementById('summaryTableBody');
+            tbody.innerHTML = "";
+            for (const menu in MENU) {
+                tbody.innerHTML += `<tr><td><b>${menu}</b></td><td>${totalOrders[menu]}</td><td>${totalSales[menu]}</td></tr>`;
+            }
+        }
+
+        document.getElementById('salesForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            let salesRecord = {
-                id: sales.length + 1,
-                datetime: new Date().toLocaleString('ko-KR'),
-                items: {}
+            let salesData = {
+                time: new Date().toLocaleString('ko-KR')
             };
+            let hasItems = false;
 
             for (const menu in MENU) {
                 let qty = parseInt(document.getElementsByName(menu)[0].value) || 0;
-                if (qty > 0) {
-                    salesRecord.items[menu] = qty;
-                }
+                salesData[menu] = qty;
+                if (qty > 0) hasItems = true;
             }
 
-            if (Object.keys(salesRecord.items).length === 0) {
-                alert("수량을 입력해주세요.");
-                return;
-            }
+            if (!hasItems) { alert("수량을 입력해주세요."); return; }
 
-            sales.push(salesRecord);
-            localStorage.setItem('sales', JSON.stringify(sales));
-            
-            alert("판매 기록이 등록되었습니다.");
-            location.href = "stats.html";
+            // 2번 DB인 'sales' 테이블에 데이터 저장
+            const { error } = await supabase.from('sales').insert([salesData]);
+            if (error) { alert("판매 등록 실패: " + error.message); } 
+            else { alert("판매(출고) 기록이 완료되었습니다!"); location.href = "stats.html"; }
         });
+
+        loadData();
     </script>
 </body>
 </html>

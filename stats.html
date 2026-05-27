@@ -15,62 +15,72 @@
     </style>
 </head>
 <body>
-    <h2>📊 재고 및 정산 현황 (종합)</h2>
+    <h2>📊 재고 및 정산 현황 (Supabase 실시간 연동)</h2>
     
     <table>
         <thead>
-            <tr>
-                <th>메뉴명</th>
-                <th>총 주문량 (입고)</th>
-                <th>총 판매량 (출고)</th>
-                <th>미결제 잔여 수량</th>
-            </tr>
+            <tr><th>메뉴명</th><th>총 주문량 (입고)</th><th>총 판매량 (출고)</th><th>미결제 잔여 수량</th></tr>
         </thead>
         <tbody id="statsTableBody"></tbody>
     </table>
 
     <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
-    <button class="reset-btn" onclick="clearData()">데이터 전체 초기화</button>
+    <button class="reset-btn" onclick="clearData()">DB 전체 초기화</button>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // ⚠️ 본인의 Supabase 정보로 꼭 변경하세요!
+        const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let sales = JSON.parse(localStorage.getItem('sales')) || [];
+        async function fetchStats() {
+            const { data: hopeRecords } = await supabase.from('hope').select('*');
+            const { data: salesRecords } = await supabase.from('sales').select('*');
 
-        let totalOrders = {};
-        let totalSales = {};
-        for (const menu in MENU) {
-            totalOrders[menu] = 0;
-            totalSales[menu] = 0;
-        }
+            let totalOrders = {}; let totalSales = {};
+            for (const menu in MENU) { totalOrders[menu] = 0; totalSales[menu] = 0; }
 
-        orders.forEach(o => { for (const [m, q] of Object.entries(o.items)) totalOrders[m] += q; });
-        sales.forEach(s => { for (const [m, q] of Object.entries(s.items)) totalSales[m] += q; });
+            hopeRecords?.forEach(row => {
+                for (const menu in MENU) { if (row[menu]) totalOrders[menu] += row[menu]; }
+            });
 
-        const tbody = document.getElementById('statsTableBody');
+            salesRecords?.forEach(row => {
+                for (const menu in MENU) { if (row[menu]) totalSales[menu] += row[menu]; }
+            });
 
-        for (const menu in MENU) {
-            let remain = totalOrders[menu] - totalSales[menu];
-            let remainClass = remain > 0 ? 'plus' : (remain < 0 ? 'minus' : '');
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = "";
 
-            tbody.innerHTML += `
-                <tr>
-                    <td><b>${menu}</b></td>
-                    <td>${totalOrders[menu]}</td>
-                    <td>${totalSales[menu]}</td>
-                    <td class="${remainClass}">${remain}</td>
-                </tr>
-            `;
-        }
+            for (const menu in MENU) {
+                // 실시간 빼기 연산 처리 (잔여 수량 계산)
+                let remain = totalOrders[menu] - totalSales[menu];
+                let remainClass = remain > 0 ? 'plus' : (remain < 0 ? 'minus' : '');
 
-        function clearData() {
-            if (confirm("정말로 모든 주문 및 판매 데이터를 삭제하시겠습니까?")) {
-                localStorage.clear();
-                alert("초기화되었습니다.");
-                location.reload();
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${menu}</b></td>
+                        <td>${totalOrders[menu]}</td>
+                        <td>${totalSales[menu]}</td>
+                        <td class="${remainClass}">${remain}</td>
+                    </tr>
+                `;
             }
         }
+
+        async function clearData() {
+            if (confirm("정말로 모든 주문(hope) 및 판매(sales) 데이터를 데이터베이스에서 삭제하시겠습니까?")) {
+                // 두 테이블의 데이터를 한 번에 조건부 매칭(id가 0보다 클 때)으로 전체 삭제
+                await supabase.from('hope').delete().gt('id', 0);
+                await supabase.from('sales').delete().gt('id', 0);
+                alert("모든 데이터가 초기화되었습니다.");
+                fetchStats();
+            }
+        }
+
+        fetchStats();
     </script>
 </body>
 </html>
