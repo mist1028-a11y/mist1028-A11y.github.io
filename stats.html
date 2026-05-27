@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>재고 및 정산 현황</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; }
+        th { background-color: #17a2b8; color: white; }
+        .minus { color: red; font-weight: bold; }
+        .plus { color: blue; }
+        .back-link { display: inline-block; margin-top: 20px; color: #6c757d; text-decoration: none; }
+        .reset-btn { float: right; margin-top: 20px; background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>📊 재고 및 정산 현황 (종합)</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>메뉴명</th>
+                <th>총 주문량 (입고)</th>
+                <th>총 판매량 (출고)</th>
+                <th>미결제 잔여 수량</th>
+            </tr>
+        </thead>
+        <tbody id="statsTableBody"></tbody>
+    </table>
+
+    <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+    <button class="reset-btn" onclick="clearData()">데이터 전체 초기화</button>
+
+    <script>
+        const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
+
+        let orders = JSON.parse(localStorage.getItem('orders')) || [];
+        let sales = JSON.parse(localStorage.getItem('sales')) || [];
+
+        let totalOrders = {};
+        let totalSales = {};
+        for (const menu in MENU) {
+            totalOrders[menu] = 0;
+            totalSales[menu] = 0;
+        }
+
+        orders.forEach(o => { for (const [m, q] of Object.entries(o.items)) totalOrders[m] += q; });
+        sales.forEach(s => { for (const [m, q] of Object.entries(s.items)) totalSales[m] += q; });
+
+        const tbody = document.getElementById('statsTableBody');
+
+        for (const menu in MENU) {
+            let remain = totalOrders[menu] - totalSales[menu];
+            let remainClass = remain > 0 ? 'plus' : (remain < 0 ? 'minus' : '');
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${menu}</b></td>
+                    <td>${totalOrders[menu]}</td>
+                    <td>${totalSales[menu]}</td>
+                    <td class="${remainClass}">${remain}</td>
+                </tr>
+            `;
+        }
+
+        function clearData() {
+            if (confirm("정말로 모든 주문 및 판매 데이터를 삭제하시겠습니까?")) {
+                localStorage.clear();
+                alert("초기화되었습니다.");
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>

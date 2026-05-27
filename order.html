@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>주문 등록</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
+        .menu-item { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
+        input[type="number"] { width: 60px; padding: 5px; text-align: center; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        .back-link { display: block; text-align: center; margin-top: 15px; color: #6c757d; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h2>📝 주문 등록</h2>
+    <form id="orderForm">
+        <div id="menuContainer"></div>
+        <button type="submit">주문 완료</button>
+    </form>
+    <a href="index.html" class="back-link">메인으로 돌아가기</a>
+
+    <script>
+        // 공통 메뉴 데이터
+        const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
+
+        // 화면에 메뉴 출력
+        const container = document.getElementById('menuContainer');
+        for (const [name, price] of Object.entries(MENU)) {
+            container.innerHTML += `
+                <div class="menu-item">
+                    <label>${name} (${price.toLocaleString()}원)</label>
+                    <input type="number" name="${name}" min="0" value="0">
+                </div>
+            `;
+        }
+
+        // 폼 제출 이벤트 처리
+        document.getElementById('orderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 기존 데이터 가져오기
+            let orders = JSON.parse(localStorage.getItem('orders')) || [];
+            
+            let orderData = {
+                id: orders.length + 1,
+                datetime: new Date().toLocaleString('ko-KR'),
+                items: {}
+            };
+
+            // 입력된 수량 체크
+            for (const menu in MENU) {
+                let qty = parseInt(document.getElementsByName(menu)[0].value) || 0;
+                if (qty > 0) {
+                    orderData.items[menu] = qty;
+                }
+            }
+
+            // 아무것도 입력하지 않았다면 차단
+            if (Object.keys(orderData.items).length === 0) {
+                alert("수량을 1개 이상 입력해주세요.");
+                return;
+            }
+
+            // 저장 후 이동
+            orders.push(orderData);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            alert("주문이 등록되었습니다.");
+            location.href = "stats.html";
+        });
+    </script>
+</body>
+</html>
