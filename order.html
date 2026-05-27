@@ -27,15 +27,21 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script>
         // ⚠️ 본인의 Supabase 정보로 주소와 키를 꼭 변경하세요!
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+
+    <script>
+        // ⚠️ 변수명을 sb로 변경하여 라이브러리 고유 이름(supabase)과의 충돌을 완벽히 차단합니다.
+        const SUPABASE_URL = "YOUR_SUPABASE_URL";
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
 
-        // 화면에 메뉴판 각각 그리기
+        // 화면에 메뉴판 각각 동적 생성
         const container = document.getElementById('menuContainer');
         for (const [name, price] of Object.entries(MENU)) {
             container.innerHTML += `
@@ -46,38 +52,49 @@
             `;
         }
 
+        // 폼 전송 시 DB에 누적 합산 데이터 Update 처리
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             let currentTime = new Date().toLocaleString('ko-KR');
             let hasItems = false;
 
-            // 1. 기존 DB의 id=1번 수량 조회
-            const { data: currentHope2 } = await supabase.from('hope2').select('*').eq('id', 1).single();
-            
-            // 2. 주문_메뉴명 칸에만 누적 연산 진행
-            let finalUpdate = { time: currentTime };
-            for (const menu in MENU) {
-                let currentQty = currentHope2 ? (currentHope2[`주문_${menu}`] || 0) : 0;
-                let newQty = parseInt(document.getElementsByName(menu)[0].value) || 0;
+            try {
+                // 1. 기존 DB의 id=1번 수량 조회 (sb 변수 사용)
+                const { data: currentHope2, error: fetchError } = await sb.from('hope2').select('*').eq('id', 1).single();
                 
-                finalUpdate[`주문_${menu}`] = currentQty + newQty;
-                if (newQty > 0) hasItems = true;
-            }
+                if (fetchError) {
+                    alert("DB 조회 실패: " + fetchError.message + "\nTable에 id=1번 데이터가 삽입되어 있는지 확인해 주세요.");
+                    return;
+                }
 
-            if (!hasItems) { 
-                alert("수량을 1개 이상 입력해주세요."); 
-                return; 
-            }
+                // 2. 주문_메뉴명 칸에만 누적 연산 진행
+                let finalUpdate = { time: currentTime };
+                for (const menu in MENU) {
+                    let currentQty = currentHope2 ? (currentHope2[`주문_${menu}`] || 0) : 0;
+                    let newQty = parseInt(document.getElementsByName(menu)[0].value) || 0;
+                    
+                    finalUpdate[`주문_${menu}`] = currentQty + newQty;
+                    if (newQty > 0) hasItems = true;
+                }
 
-            // 3. 누적치 전송 수정 (Update)
-            const { error } = await supabase.from('hope2').update(finalUpdate).eq('id', 1);
+                if (!hasItems) { 
+                    alert("수량을 1개 이상 입력해주세요."); 
+                    return; 
+                }
 
-            if (error) {
-                alert("주문 등록 실패: " + error.message);
-            } else {
-                alert("주문이 누적 기록되었습니다.");
-                location.href = "stats.html";
+                // 3. 누적치 전송 수정 (Update)
+                const { error: updateError } = await sb.from('hope2').update(finalUpdate).eq('id', 1);
+
+                if (updateError) {
+                    alert("주문 등록 실패: " + updateError.message);
+                } else {
+                    alert("주문이 성공적으로 누적 기록되었습니다!");
+                    location.href = "stats.html";
+                }
+            } catch (err) {
+                alert("알 수 없는 에러가 발생했습니다. 개발자 도구(F12) 콘솔을 확인해 주세요.");
+                console.error(err);
             }
         });
     </script>
