@@ -34,9 +34,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ⚠️ 본인의 Supabase 정보로 꼭 변경하세요!
+
         const SUPABASE_URL = "https://zlamytsnnrgksfhqwdch.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_qdZ6alcdtNRmBGJKecWGCQ_bFTgDdUT";
+
+
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const MENU = { "떡볶이": 4000, "잔치국수": 5000, "김치전": 6000, "마른안주": 10000, "골뱅이무침": 20000, "콜팝": 5000, "컵라면": 2000, "캔맥주": 3000, "막걸리": 3000, "음료": 2000 };
@@ -47,49 +49,42 @@
         }
 
         async function loadData() {
-            // hope(주문)와 sales(판매) 테이블 데이터를 각각 동시 로드
-            const { data: hopeRecords } = await supabase.from('hope').select('*');
-            const { data: salesRecords } = await supabase.from('sales').select('*');
-
-            let totalOrders = {}; let totalSales = {};
-            for (const menu in MENU) { totalOrders[menu] = 0; totalSales[menu] = 0; }
-
-            // 주문(hope) 데이터 누적 계산
-            hopeRecords?.forEach(row => {
-                for (const menu in MENU) { if (row[menu]) totalOrders[menu] += row[menu]; }
-            });
-
-            // 판매(sales) 데이터 누적 계산
-            salesRecords?.forEach(row => {
-                for (const menu in MENU) { if (row[menu]) totalSales[menu] += row[menu]; }
-            });
+            // hope2 테이블의 1번 행을 긁어와 누적 주문/판매 표를 보여줍니다.
+            const { data: summary } = await supabase.from('hope2').select('*').eq('id', 1).single();
 
             const tbody = document.getElementById('summaryTableBody');
             tbody.innerHTML = "";
+
             for (const menu in MENU) {
-                tbody.innerHTML += `<tr><td><b>${menu}</b></td><td>${totalOrders[menu]}</td><td>${totalSales[menu]}</td></tr>`;
+                let orderQty = summary ? (summary[`주문_${menu}`] || 0) : 0;
+                let salesQty = summary ? (summary[`판매_${menu}`] || 0) : 0;
+                tbody.innerHTML += `<tr><td><b>${menu}</b></td><td>${orderQty}</td><td>${salesQty}</td></tr>`;
             }
         }
 
         document.getElementById('salesForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            let salesData = {
-                time: new Date().toLocaleString('ko-KR')
-            };
+            
+            // 1. 현재 hope2 데이터 조회
+            const { data: currentHope2 } = await supabase.from('hope2').select('*').eq('id', 1).single();
+            
+            // 2. 누적할 데이터와 판매 완료 시간(time) 세팅
+            let finalUpdate = { time: new Date().toLocaleString('ko-KR') };
             let hasItems = false;
 
             for (const menu in MENU) {
-                let qty = parseInt(document.getElementsByName(menu)[0].value) || 0;
-                salesData[menu] = qty;
-                if (qty > 0) hasItems = true;
+                let currentQty = currentHope2 ? (currentHope2[`판매_${menu}`] || 0) : 0;
+                let inputQty = parseInt(document.getElementsByName(menu)[0].value) || 0;
+                finalUpdate[`판매_${menu}`] = currentQty + inputQty; 
+                if (inputQty > 0) hasItems = true;
             }
 
             if (!hasItems) { alert("수량을 입력해주세요."); return; }
 
-            // 2번 DB인 'sales' 테이블에 데이터 저장
-            const { error } = await supabase.from('sales').insert([salesData]);
+            // 3. hope2 테이블에 누적 판매 수량과 판매시간 업데이트
+            const { error } = await supabase.from('hope2').update(finalUpdate).eq('id', 1);
             if (error) { alert("판매 등록 실패: " + error.message); } 
-            else { alert("판매(출고) 기록이 완료되었습니다!"); location.href = "stats.html"; }
+            else { alert("판매 누적 기록 및 시간이 업데이트되었습니다!"); location.href = "stats.html"; }
         });
 
         loadData();
