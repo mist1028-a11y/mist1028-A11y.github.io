@@ -31,9 +31,15 @@
             color: #7f8c8d;
             margin-bottom: 15px;
         }
+        /* 🎯 상단 컨트롤 버튼 및 마감번호 레이아웃 */
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
         .refresh-btn {
-            display: block;
-            margin: 0 auto 15px auto;
             padding: 8px 16px;
             background-color: #3498db;
             color: white;
@@ -44,6 +50,15 @@
         }
         .refresh-btn:hover {
             background-color: #2980b9;
+        }
+        .close-number-badge {
+            padding: 7px 14px;
+            background-color: #e74c3c;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
         }
         table {
             width: 100%;
@@ -61,15 +76,14 @@
             background-color: #2c3e50;
             color: white;
             font-weight: bold;
-            height: 110px; /* 세로 글씨 공간 확보 */
+            height: 110px; 
             vertical-align: bottom;
             padding-bottom: 10px;
             white-space: nowrap;
         }
-        /* 🎯 글자 뒤집힘 해결 버전 세로 헤더 */
         th.menu-header {
             writing-mode: vertical-rl;
-            text-orientation: mixed; /* 글자가 거꾸로 돌아가지 않게 고정 */
+            text-orientation: mixed; 
             text-align: left;
             width: 30px; 
             min-width: 30px;
@@ -122,7 +136,11 @@
 <div class="container">
     <h1>🍻 일일호프 주문현황</h1>
     <div class="auto-refresh-status">🔄 10초마다 자동으로 새로고침 됩니다.</div>
-    <button class="refresh-btn" onclick="fetchSheetData()">🔄 즉시 새로고침</button>
+    
+    <div class="control-panel">
+        <button class="refresh-btn" onclick="fetchSheetData()">🔄 즉시 새로고침</button>
+        <div id="close-number-display" class="close-number-badge">📢 주문마감번호: 확인중...</div>
+    </div>
     
     <div id="loading" class="loading">주문 데이터를 불러오는 중입니다...</div>
     
@@ -191,13 +209,35 @@
         const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
         if (lines.length === 0) return;
 
-        headers = splitCSVLine(lines[0]);
+        // 1. 전체 헤더 파싱 (A1, B1, C1... N1...)
+        const rawHeaders = splitCSVLine(lines[0]);
+        
+        // 🎯 [N1 셀 값 추출 로직] 
+        // 알파벳 'N'은 14번째 열이므로 인덱스로는 13입니다.
+        const n1Index = 13; 
+        let closeNumber = '없음';
+        
+        // 데이터가 들어있는 첫 번째 행(시트의 2행)에서 N열의 값을 가져옵니다.
+        if (lines[1]) {
+            const firstRowData = splitCSVLine(lines[1]);
+            if (firstRowData[n1Index]) {
+                closeNumber = firstRowData[n1Index];
+            }
+        }
+        // 화면에 주문마감번호 업데이트
+        document.getElementById('close-number-display').innerText = `📢 주문마감번호: ${closeNumber}`;
+
+        // 2. 대시보드 테이블용 헤더 정의 (주문마감용 N열 및 불필요한 공백열 필터링)
+        // 시트 구조에 따라 N열 앞까지만 테이블로 노출시키기 위해 자릅니다.
+        // 만약 메뉴가 M열까지만 있다면 자동으로 잘라줍니다.
+        headers = rawHeaders.slice(0, n1Index).filter(h => h.length > 0);
         
         orderData = [];
         for (let i = 1; i < lines.length; i++) {
             const currentLine = splitCSVLine(lines[i]);
             if (currentLine[0]) { 
-                orderData.push(currentLine);
+                // 데이터 행도 헤더 크기만큼 똑같이 잘라서 유효한 주문 정보만 배열에 삽입
+                orderData.push(currentLine.slice(0, headers.length));
             }
         }
         orderData.reverse(); 
