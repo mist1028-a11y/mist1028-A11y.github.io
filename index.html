@@ -59,17 +59,27 @@
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
         }
+        
+        /* 🎯 가로 스크롤 시 1, 2열 고정을 위한 테이블 컨테이너 설정 */
+        .table-wrapper {
+            overflow-x: auto;
+            position: relative;
+            max-width: 100%;
+            border: 1px solid #ddd;
+        }
         table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            border-collapse: separate; /* sticky 테두리 깨짐 방지 */
+            border-spacing: 0;
             table-layout: auto;
         }
         th, td {
-            border: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
             padding: 8px 4px;
             text-align: center;
             font-size: 14px;
+            background-color: #fff; /* 고정 시 뒤에 비치는 현상 방지 */
         }
         th {
             background-color: #2c3e50;
@@ -88,16 +98,47 @@
             min-width: 30px;
             letter-spacing: 1px;
         }
-        tr:nth-child(even) {
+        tr:nth-child(even) td {
             background-color: #f9f9f9;
         }
+
+        /* 🎯 [핵심 CSS] 1열(No) 및 2열(누적 수량) 고정 레이어 스타일 */
+        /* 1열 고정 (왼쪽 끝에 고정) */
+        .sticky-col1 {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            width: 50px;
+            min-width: 50px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+        /* 2열 고정 (1열 폭인 50px 뒤에 고정) */
+        .sticky-col2 {
+            position: sticky;
+            left: 50px; 
+            z-index: 2;
+            width: 80px;
+            min-width: 80px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.08); /* 경계선 음영 추가 */
+        }
+        /* 헤더는 데이터보다 한 층 위에 있어야 스크롤 시 안 묻힙니다 */
+        th.sticky-col1, th.sticky-col2 {
+            background-color: #2c3e50 !important;
+            z-index: 3;
+        }
+        /* 2번째 열(누적 수량)의 데이터 행 배경색 구분 (선택사항) */
+        td.sticky-col2 {
+            background-color: #f0f4f8 !important; 
+            font-weight: bold;
+        }
+
         .empty-cell {
             color: #ccc;
         }
         .has-value {
             font-weight: bold;
             color: #e74c3c;
-            background-color: #ffe6e6;
+            background-color: #ffe6e6 !important; /* 고정 배경색 덮어쓰기 */
             font-size: 16px; 
         }
         .pagination {
@@ -143,7 +184,7 @@
     
     <div id="loading" class="loading">주문 데이터를 불러오는 중입니다...</div>
     
-    <div style="overflow-x: auto;">
+    <div class="table-wrapper">
         <table id="dashboard-table" style="display: none;">
             <thead>
                 <tr id="table-header"></tr>
@@ -210,7 +251,6 @@
 
         const rawHeaders = splitCSVLine(lines[0]);
         
-        // 📢 첫 번째 행의 14번째 컬럼(인덱스 13, N1)에서 마감번호 추출
         const targetColumnIndex = 13; 
         let closeNumber = '없음';
         
@@ -219,16 +259,15 @@
         }
         document.getElementById('close-number-display').innerText = `📢 주문마감번호: ${closeNumber}`;
 
-        // 🎯 [수정] 13열과 14열(인덱스 12, 13)을 제외하고 테이블 헤더 정의
+        // 13, 14열 제외하고 테이블 헤더 정의
         headers = rawHeaders
-            .filter((h, idx) => idx !== 12 && idx !== 13) // 13, 14열 제외
+            .filter((h, idx) => idx !== 12 && idx !== 13) 
             .filter(h => h.length > 0);
         
         orderData = [];
         for (let i = 1; i < lines.length; i++) {
             const currentLine = splitCSVLine(lines[i]);
             if (currentLine[0]) { 
-                // 🎯 [수정] 데이터 행도 동일하게 13, 14열 데이터를 걸러내고 저장
                 const filteredLine = currentLine.filter((_, idx) => idx !== 12 && idx !== 13);
                 orderData.push(filteredLine);
             }
@@ -245,7 +284,12 @@
             const th = document.createElement('th');
             th.innerText = header;
             
-            if (index > 0) {
+            // 🎯 헤더 고정 및 클래스 분기
+            if (index === 0) {
+                th.classList.add('sticky-col1');
+            } else if (index === 1) {
+                th.classList.add('sticky-col2');
+            } else {
                 th.classList.add('menu-header');
             }
             headerRow.appendChild(th);
@@ -269,6 +313,14 @@
                 const cell = row[index] || ''; 
                 const value = cell.trim();
                 
+                // 🎯 데이터 행 고정 클래스 부여
+                if (index === 0) {
+                    td.classList.add('sticky-col1');
+                } else if (index === 1) {
+                    td.classList.add('sticky-col2');
+                }
+
+                // 값에 따른 빨간색 하이라이트 조건 (2열 포함)
                 if (index > 0 && value && value !== '0' && !isNaN(value)) {
                     td.innerText = value;
                     td.classList.add('has-value'); 
