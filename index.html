@@ -9,32 +9,34 @@
             font-family: 'Malgun Gothic', sans-serif;
             background-color: #f4f7f6;
             margin: 0;
-            padding: 20px;
+            padding: 5px 10px; /* 상하 여백을 5px로 극한으로 줄임 */
             color: #333;
         }
         .container {
             max-width: 1200px;
             margin: 0 auto;
             background: #fff;
-            padding: 30px;
+            padding: 15px; /* 내부 여백 축소 */
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1 {
             text-align: center;
             color: #2c3e50;
-            margin-bottom: 30px;
+            margin-top: 5px;    /* 상단 마진 대폭 축소 */
+            margin-bottom: 15px; /* 타이틀 아래 여백 축소 */
+            font-size: 24px;    /* 글씨 크기 살짝 축소하여 공간 확보 */
         }
         .refresh-btn {
             display: block;
-            margin: 0 auto 20px auto;
-            padding: 12px 24px;
+            margin: 0 auto 15px auto;
+            padding: 10px 20px;
             background-color: #e67e22;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: background 0.2s;
@@ -45,12 +47,13 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 12px;
+            padding: 10px 8px; /* 셀 내부 여백을 줄여 더 콤팩트하게 변경 */
             text-align: center;
+            font-size: 14px;
         }
         th {
             background-color: #2c3e50;
@@ -75,9 +78,9 @@
         }
         .loading {
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             color: #7f8c8d;
-            padding: 40px 0;
+            padding: 20px 0;
         }
     </style>
 </head>
@@ -100,12 +103,12 @@
 </div>
 
 <script>
-    // 구글 시트 웹 게시 CSV URL
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pub?output=csv';
     
     let orderData = [];
     let headers = [];
-    const maxItems = 15; // 화면에 보여줄 최대 데이터 개수
+    const maxItems = 15; // 출력할 최대 행 개수
+    const maxColumns = 8; // [핵심] 출력할 최대 컬럼(열) 개수
 
     async function fetchSheetData() {
         const loadingEl = document.getElementById('loading');
@@ -119,129 +122,3 @@
             const data = await response.text();
             
             parseCSV(data);
-            
-            loadingEl.style.display = 'none';
-            tableEl.style.display = 'table';
-            
-            renderTable();
-        } catch (error) {
-            console.error('데이터를 불러오는 중 오류 발생:', error);
-            loadingEl.innerText = '⚠️ 데이터를 불러오지 못했습니다. 시트 주소 및 웹 게시 설정을 확인해주세요.';
-        }
-    }
-
-    // 콤마(,) 및 큰따옴표가 포함된 데이터를 안전하게 파싱하는 함수
-    function parseCSVRow(text) {
-        const result = [];
-        let row = [];
-        let insideQuote = false;
-        let entry = '';
-
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-            const nextChar = text[i+1];
-
-            if (char === '"') {
-                if (insideQuote && nextChar === '"') {
-                    entry += '"';
-                    i++;
-                } else {
-                    insideQuote = !insideQuote;
-                }
-            } else if (char === ',' && !insideQuote) {
-                row.push(entry);
-                entry = '';
-            } else if ((char === '\r' || char === '\n') && !insideQuote) {
-                if (char === '\r' && nextChar === '\n') i++;
-                row.push(entry);
-                result.push(row);
-                row = [];
-                entry = '';
-            } else {
-                entry += char;
-            }
-        }
-        if (entry || row.length > 0) {
-            row.push(entry);
-            result.push(row);
-        }
-        return result;
-    }
-
-    function parseCSV(text) {
-        const lines = parseCSVRow(text).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
-        if (lines.length === 0) return;
-
-        headers = lines[0].map(h => h.trim());
-        
-        orderData = [];
-        for (let i = 1; i < lines.length; i++) {
-            const currentLine = lines[i];
-            // 두 번째 열(index: 1)이 'No'이므로, 두 번째 열에 값이 있는지 확인합니다.
-            if (currentLine[1] && currentLine[1].trim() !== '') { 
-                orderData.push(currentLine.map(cell => cell.trim()));
-            }
-        }
-    }
-
-    function renderTable() {
-        const headerRow = document.getElementById('table-header');
-        const tableBody = document.getElementById('table-body');
-        
-        // 헤더 출력
-        headerRow.innerHTML = '';
-        headers.forEach(header => {
-            const th = document.createElement('th');
-            th.innerText = header;
-            headerRow.appendChild(th);
-        });
-
-        tableBody.innerHTML = '';
-
-        // [핵심 변경] 마지막 데이터 기준 최근 15개 데이터만 슬라이싱 (오름차순 유지)
-        let displayData = [];
-        if (orderData.length > maxItems) {
-            displayData = orderData.slice(orderData.length - maxItems);
-        } else {
-            displayData = orderData;
-        }
-
-        if (displayData.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="${headers.length}">주문 내역이 없습니다.</td></tr>`;
-            return;
-        }
-
-        // 화면 렌더링 (순서대로 출력되므로 위에서부터 1, 2, 3... 혹은 26, 27, 28... 순 정렬)
-        displayData.forEach(row => {
-            const tr = document.createElement('tr');
-            
-            headers.forEach((_, index) => {
-                const td = document.createElement('td');
-                const value = row[index] ? row[index].trim() : '';
-                
-                // 첫 번째 열(index: 0)과 두 번째 열(index: 1, No)은 단순 출력만 진행
-                const isNumber = value !== '' && !isNaN(value);
-                // 세 번째 열(index: 2)부터 숫자가 1 이상인 경우 주문 수량으로 인식하여 강조
-                const isOrderQuantity = index > 1 && isNumber && Number(value) > 0;
-
-                if (isOrderQuantity) {
-                    td.innerText = value;
-                    td.classList.add('has-value');
-                } else if (index > 1 && (value === '0' || !value)) {
-                    td.innerText = '-';
-                    td.classList.add('empty-cell');
-                } else {
-                    td.innerText = value;
-                }
-                
-                tr.appendChild(td);
-            });
-            tableBody.appendChild(tr);
-        });
-    }
-
-    window.onload = fetchSheetData;
-</script>
-
-</body>
-</html>
