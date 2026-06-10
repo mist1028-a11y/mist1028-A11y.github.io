@@ -9,63 +9,59 @@
             font-family: 'Malgun Gothic', sans-serif;
             background-color: #f4f7f6;
             margin: 0;
-            padding: 5px 10px;
+            padding: 20px;
             color: #333;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1250px;
             margin: 0 auto;
             background: #fff;
-            padding: 15px;
+            padding: 30px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1 {
             text-align: center;
             color: #2c3e50;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .auto-refresh-status {
+            text-align: center;
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
         }
         .refresh-btn {
             display: block;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 20px auto;
             padding: 10px 20px;
-            background-color: #e67e22;
+            background-color: #3498db;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 15px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: background 0.2s;
+            font-size: 16px;
         }
         .refresh-btn:hover {
-            background-color: #d35400;
+            background-color: #2980b9;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 5px;
+            margin-top: 10px;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 10px 8px;
+            padding: 12px;
             text-align: center;
-            font-size: 14px;
         }
         th {
             background-color: #2c3e50;
             color: white;
-            position: sticky;
-            top: 0;
+            white-space: nowrap;
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
-        }
-        tr:hover {
-            background-color: #f1f2f6;
         }
         .empty-cell {
             color: #ccc;
@@ -74,13 +70,34 @@
             font-weight: bold;
             color: #e74c3c;
             background-color: #ffe6e6;
-            font-size: 1.1em;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background-color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .pagination button.active {
+            background-color: #2c3e50;
+            color: white;
+            border-color: #2c3e50;
+        }
+        .pagination button:disabled {
+            background-color: #eee;
+            cursor: not-allowed;
         }
         .loading {
             text-align: center;
-            font-size: 16px;
+            font-size: 18px;
             color: #7f8c8d;
-            padding: 20px 0;
+            padding: 40px 0;
         }
     </style>
 </head>
@@ -88,7 +105,8 @@
 
 <div class="container">
     <h1>🍻 일일호프 주문현황</h1>
-    <button class="refresh-btn" onclick="fetchSheetData()">🔄 새로고침</button>
+    <div class="auto-refresh-status">🔄 10초마다 자동으로 새로고침 됩니다.</div>
+    <button class="refresh-btn" onclick="fetchSheetData()">🔄 즉시 새로고침</button>
     
     <div id="loading" class="loading">주문 데이터를 불러오는 중입니다...</div>
     
@@ -100,25 +118,28 @@
             <tbody id="table-body"></tbody>
         </table>
     </div>
+
+    <div class="pagination" id="pagination"></div>
 </div>
 
 <script>
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pub?output=csv';
+    // ⚠️ 중요: 구글 시트 웹 게시 시 파일 형식을 '쉼표로 구분된 값(.csv)'으로 선택한 주소를 넣으세요!
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pub?output=csv'; 
     
     let orderData = [];
     let headers = [];
-    const maxItems = 15; // 무조건 출력할 최대 행 개수 (15개)
-    const maxColumns = 8; // 출력할 최대 컬럼 개수 (8개)
+    let currentPage = 1;
+    const itemsPerPage = 15;
 
+    // 구글 시트에서 데이터 가져오기
     async function fetchSheetData() {
         const loadingEl = document.getElementById('loading');
         const tableEl = document.getElementById('dashboard-table');
         
-        loadingEl.style.display = 'block';
-        tableEl.style.display = 'none';
-
         try {
             const response = await fetch(`${SHEET_CSV_URL}&t=${new Date().getTime()}`);
+            if (!response.ok) throw new Error('네트워크 응답 불량');
+            
             const data = await response.text();
             
             parseCSV(data);
@@ -129,67 +150,57 @@
             renderTable();
         } catch (error) {
             console.error('데이터를 불러오는 중 오류 발생:', error);
-            loadingEl.innerText = '⚠️ 데이터를 불러오지 못했습니다. 시트 주소 및 웹 게시 설정을 확인해주세요.';
+            loadingEl.style.display = 'block';
+            loadingEl.innerHTML = '⚠️ 데이터를 불러오지 못했습니다.<br>1. 구글 시트에서 [웹에 게시] 설정을 하셨는지 확인해주세요.<br>2. 게시 형식을 <b>[쉼표로 구분된 값(.csv)]</b>으로 선택했는지 확인해주세요.';
         }
     }
 
-    function parseCSVRow(text) {
+    // CSV 파싱 안전 분리 함수
+    function splitCSVLine(line) {
         const result = [];
-        let row = [];
-        let insideQuote = false;
-        let entry = '';
+        let current = '';
+        let inQuotes = false;
 
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-            const nextChar = text[i+1];
-
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
             if (char === '"') {
-                if (insideQuote && nextChar === '"') {
-                    entry += '"';
-                    i++;
-                } else {
-                    insideQuote = !insideQuote;
-                }
-            } else if (char === ',' && !insideQuote) {
-                row.push(entry);
-                entry = '';
-            } else if ((char === '\r' || char === '\n') && !insideQuote) {
-                if (char === '\r' && nextChar === '\n') i++;
-                row.push(entry);
-                result.push(row);
-                row = [];
-                entry = '';
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim().replace(/^"|"$/g, ''));
+                current = '';
             } else {
-                entry += char;
+                current += char;
             }
         }
-        if (entry || row.length > 0) {
-            row.push(entry);
-            result.push(row);
-        }
+        result.push(current.trim().replace(/^"|"$/g, ''));
         return result;
     }
 
+    // CSV 텍스트 파싱 처리
     function parseCSV(text) {
-        const lines = parseCSVRow(text).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
+        const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
         if (lines.length === 0) return;
 
-        headers = lines[0].map(h => h.trim()).slice(0, maxColumns);
+        headers = splitCSVLine(lines[0]);
         
         orderData = [];
         for (let i = 1; i < lines.length; i++) {
-            const currentLine = lines[i];
-            // 두 번째 열(No.)에 실제 숫자가 올바르게 들어있는 경우만 엄격하게 필터링
-            if (currentLine[1] && currentLine[1].trim() !== '' && !isNaN(currentLine[1].trim())) { 
-                orderData.push(currentLine.map(cell => cell.trim()).slice(0, maxColumns));
+            const currentLine = splitCSVLine(lines[i]);
+            if (currentLine[0]) { 
+                orderData.push(currentLine);
             }
         }
+        
+        // 최신 주문이 대시보드 위로 오도록 역순 배치
+        orderData.reverse(); 
     }
 
+    // 테이블 헤더 및 데이터 렌더링
     function renderTable() {
         const headerRow = document.getElementById('table-header');
         const tableBody = document.getElementById('table-body');
         
+        // 헤더 생성
         headerRow.innerHTML = '';
         headers.forEach(header => {
             const th = document.createElement('th');
@@ -197,38 +208,37 @@
             headerRow.appendChild(th);
         });
 
+        // 현재 페이지 데이터 계산
         tableBody.innerHTML = '';
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, orderData.length);
+        const pageData = orderData.slice(startIndex, endIndex);
 
-        // [수정] 데이터 개수가 15개를 초과하면 무조건 뒤에서부터 15개만 도려내어 displayData에 할당합니다.
-        let displayData = [];
-        if (orderData.length > maxItems) {
-            displayData = orderData.slice(orderData.length - maxItems);
-        } else {
-            displayData = orderData;
-        }
-
-        if (displayData.length === 0) {
+        // 데이터 행 생성
+        if (pageData.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="${headers.length}">주문 내역이 없습니다.</td></tr>`;
             return;
         }
 
-        displayData.forEach(row => {
+        pageData.forEach(row => {
             const tr = document.createElement('tr');
             
-            headers.forEach((_, index) => {
+            row.forEach((cell, index) => {
                 const td = document.createElement('td');
-                const value = row[index] ? row[index].trim() : '';
+                const value = cell.trim();
                 
-                const isNumber = value !== '' && !isNaN(value);
-                const isOrderQuantity = index > 1 && isNumber && Number(value) > 0;
-
-                if (isOrderQuantity) {
+                // 🎯 [수정된 핵심 로직] 2열(index 1)을 포함한 모든 메뉴 칸에 숫자가 있으면 빨간색 강조!
+                if (index > 0 && value && value !== '0' && !isNaN(value)) {
                     td.innerText = value;
-                    td.classList.add('has-value');
-                } else if (index > 1 && (value === '0' || !value)) {
+                    td.classList.add('has-value'); 
+                } 
+                // 값이 0이거나 비어있을 때만 회색 하이픈(-) 처리
+                else if (index > 0 && (value === '0' || !value)) {
                     td.innerText = '-';
-                    td.classList.add('empty-cell');
-                } else {
+                    td.classList.add('empty-cell'); 
+                } 
+                // 1열(No, index 0)은 일반 텍스트로 출력
+                else {
                     td.innerText = value;
                 }
                 
@@ -236,9 +246,56 @@
             });
             tableBody.appendChild(tr);
         });
+
+        renderPagination();
     }
 
-    window.onload = fetchSheetData;
+    // 페이지네이션 버튼 제어
+    function renderPagination() {
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';
+
+        const totalPages = Math.ceil(orderData.length / itemsPerPage);
+        if (totalPages <= 1) return;
+
+        // 이전 페이지 버튼
+        const prevBtn = document.createElement('button');
+        prevBtn.innerText = '이전';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => {
+            currentPage--;
+            renderTable();
+        };
+        paginationContainer.appendChild(prevBtn);
+
+        // 페이지 번호 버튼
+        for (let i = 1; i <= totalPages; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.innerText = i;
+            if (i === currentPage) pageBtn.classList.add('active');
+            pageBtn.onclick = () => {
+                currentPage = i;
+                renderTable();
+            };
+            paginationContainer.appendChild(pageBtn);
+        }
+
+        // 다음 페이지 버튼
+        const nextBtn = document.createElement('button');
+        nextBtn.innerText = '다음';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => {
+            currentPage++;
+            renderTable();
+        };
+        paginationContainer.appendChild(nextBtn);
+    }
+
+    // 페이지 로드 시 구글 시트 데이터 호출 및 자동 새로고침 설정
+    window.onload = () => {
+        fetchSheetData();
+        setInterval(fetchSheetData, 10000); // 10초마다 자동 새로고침
+    };
 </script>
 
 </body>
