@@ -3,173 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>일일호프 주문현황 대시보드</title>
+    <title>🍻 일일호프 주문현황 대시보드</title>
     <style>
+        /* 기본 스타일 리셋 및 부드러운 배경색 */
         body {
-            font-family: 'Malgun Gothic', sans-serif;
-            background-color: #f4f7f6;
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            background-color: #f8f9fa;
             margin: 0;
-            padding: 20px;
-            color: #333;
+            padding: 25px;
+            color: #212529;
+            letter-spacing: -0.02em;
         }
+        
+        /* 메인 컨테이너 패널 스타일링 */
         .container {
             max-width: 100%; 
             margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         }
+        
         h1 {
             text-align: center;
-            color: #2c3e50;
-            margin-bottom: 5px;
+            color: #1a252f;
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
         }
+        
         .auto-refresh-status {
             text-align: center;
             font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 15px;
+            color: #868e96;
+            margin-bottom: 20px;
+            font-weight: 500;
         }
+        
+        /* 상단 컨트롤 영역 정렬 및 스타일 */
         .control-panel {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        .refresh-btn {
-            padding: 8px 16px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .refresh-btn:hover {
-            background-color: #2980b9;
-        }
-        .close-number-badge {
-            padding: 7px 14px;
-            background-color: #e74c3c;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+            gap: 16px;
+            margin-bottom: 20px;
         }
         
-        /* 테이블 컨테이너 설정 */
+        .refresh-btn {
+            padding: 10px 20px;
+            background-color: #3b5bdb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 2px 4px rgba(59, 91, 219, 0.2);
+        }
+        
+        .refresh-btn:hover {
+            background-color: #2b45b6;
+        }
+        
+        .close-number-badge {
+            padding: 9px 18px;
+            background-color: #e03131;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(224, 49, 49, 0.3);
+        }
+        
+        /* 🎯 테이블 스크롤 및 틀고정 레이아웃 최적화 */
         .table-wrapper {
             overflow-x: auto;
             position: relative;
             max-width: 100%;
-            border: 1px solid #ddd;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
         }
+        
         table {
             width: 100%;
             border-collapse: separate; 
             border-spacing: 0;
             table-layout: auto;
         }
+        
         th, td {
-            border-right: 1px solid #ddd;
-            border-bottom: 1px solid #ddd;
-            padding: 8px 4px;
+            border-right: 1px solid #e9ecef;
+            border-bottom: 1px solid #e9ecef;
+            padding: 10px 6px;
             text-align: center;
             font-size: 14px;
-            background-color: #fff; 
+            background-color: #ffffff; 
         }
+        
+        /* 헤더 기본 디자인 (어두운 네이비로 깔끔하게 변경) */
         th {
-            background-color: #2c3e50;
-            color: white;
-            font-weight: bold;
-            height: 110px; 
+            background-color: #1a252f;
+            color: #ffffff;
+            font-weight: 700;
+            height: 120px; 
             vertical-align: bottom;
-            padding-bottom: 10px;
+            padding-bottom: 12px;
             white-space: nowrap;
         }
+        
+        /* 세로 회전 메뉴 글자 스타일 정비 */
         th.menu-header {
             writing-mode: vertical-rl;
             text-orientation: mixed; 
             text-align: left;
-            width: 30px; 
-            min-width: 30px;
+            width: 32px; 
+            min-width: 32px;
             letter-spacing: 1px;
+            font-size: 13px;
+            color: #f1f3f5;
         }
+        
+        /* 행별 교차 배경색으로 착시 방지 */
         tr:nth-child(even) td {
-            background-color: #f9f9f9;
+            background-color: #f8f9fa;
         }
 
-        /* 🎯 [칼럼 고정 CSS] 가로 스크롤 시 1칼럼, 2칼럼 틀고정 */
-        /* 1번째 칼럼 (No) 고정 */
+        /* 🎯 [틀고정 가독성 업그레이드] */
+        /* 1칼럼 고정 (No) */
         .sticky-col1 {
             position: sticky;
             left: 0;
             z-index: 2;
-            width: 60px;
-            min-width: 60px;
-            max-width: 60px;
-        }
-        /* 2번째 칼럼 (누적 수량) 고정 -> 1번째 칼럼 너비(60px)만큼 띄우고 고정 */
-        .sticky-col2 {
-            position: sticky;
-            left: 60px; 
-            z-index: 2;
-            width: 90px;
-            min-width: 90px;
-            max-width: 90px;
-            border-right: 2px solid #bdc3c7; /* 스크롤 시 경계선이 명확히 보이도록 설정 */
+            width: 55px;
+            min-width: 55px;
+            max-width: 55px;
+            font-weight: 600;
+            color: #495057;
         }
         
-        /* 헤더 고정 레이어 층수 높이기 */
+        /* 2칼럼 고정 (누적 수량) */
+        .sticky-col2 {
+            position: sticky;
+            left: 55px; 
+            z-index: 2;
+            width: 85px;
+            min-width: 85px;
+            max-width: 85px;
+            /* 가로 스크롤 시 확실하게 쪼개지도록 우측 그림자 경계선 추가 */
+            box-shadow: 4px 0 8px -3px rgba(0, 0, 0, 0.15); 
+            border-right: 2px solid #ced4da; 
+        }
+        
+        /* 고정 칼럼 헤더 전용 z-index 제어 */
         th.sticky-col1, th.sticky-col2 {
-            background-color: #2c3e50 !important;
+            background-color: #1a252f !important;
+            color: #ffffff !important;
             z-index: 3;
         }
         
-        /* 데이터 행 안의 2번째 칼럼 스타일 구분 */
+        /* 기본 누적 수량 열 배경색 (연한 회색/화이트 톤 유지로 대비 극대화) */
         td.sticky-col2 {
-            background-color: #f0f4f8 !important; 
+            background-color: #f1f3f5 !important;
+            font-weight: 700;
+            color: #343a40;
         }
 
+        /* 빈 셀 스타일 (가독성을 위해 대시를 더 흐리게 배치) */
         .empty-cell {
-            color: #ccc;
+            color: #dee2e6;
+            font-weight: 300;
         }
+        
+        /* 🎯 [주문 강조 스타일 변경] 멀리서도 확 튀게 변경 */
         .has-value {
-            font-weight: bold;
-            color: #e74c3c;
-            background-color: #ffe6e6 !important; /* 하이라이트 색상이 고정 색상을 덮어쓰도록 설정 */
-            font-size: 16px; 
+            font-weight: 800 !important;
+            color: #d9480f !important; /* 가독성 좋은 진한 오렌지-레드 */
+            background-color: #fff0f6 !important; /* 화사하고 부드러운 핑크빛 배경 */
+            font-size: 18px; /* 숫자 강조 크기 키움 */
+            text-shadow: 0 0 1px rgba(217, 72, 15, 0.2);
         }
+        
+        /* 하단 페이지네이션 깔끔한 보더리스 스타일 */
         .pagination {
             display: flex;
             justify-content: center;
-            margin-top: 20px;
-            gap: 5px;
+            margin-top: 24px;
+            gap: 6px;
         }
+        
         .pagination button {
             padding: 8px 14px;
-            border: 1px solid #ddd;
+            border: 1px solid #dee2e6;
             background-color: white;
+            color: #495057;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s ease;
         }
+        
+        .pagination button:hover:not(:disabled) {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+        }
+        
         .pagination button.active {
-            background-color: #2c3e50;
+            background-color: #1a252f;
             color: white;
-            border-color: #2c3e50;
+            border-color: #1a252f;
+            font-weight: 600;
         }
+        
         .pagination button:disabled {
-            background-color: #eee;
+            background-color: #f8f9fa;
+            color: #c1c7cd;
             cursor: not-allowed;
+            border-color: #e9ecef;
         }
+        
         .loading {
             text-align: center;
-            font-size: 18px;
-            color: #7f8c8d;
-            padding: 40px 0;
+            font-size: 16px;
+            color: #495057;
+            padding: 50px 0;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -261,7 +321,7 @@
         }
         document.getElementById('close-number-display').innerText = `📢 주문마감번호: ${closeNumber}`;
 
-        // 13, 14열 제외
+        // 13, 14열 제외하고 테이블 헤더 정의
         headers = rawHeaders
             .filter((h, idx) => idx !== 12 && idx !== 13) 
             .filter(h => h.length > 0);
@@ -325,4 +385,63 @@
                     td.classList.add('has-value'); 
                 } 
                 else if (index > 0 && (value === '0' || !value)) {
-                    td.innerText
+                    td.innerText = '-';
+                    td.classList.add('empty-cell'); 
+                } 
+                else {
+                    td.innerText = value;
+                }
+                
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';
+
+        const totalPages = Math.ceil(orderData.length / itemsPerPage);
+        if (totalPages <= 1) return;
+
+        const prevBtn = document.createElement('button');
+        prevBtn.innerText = '이전';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => {
+            currentPage--;
+            renderTable();
+        };
+        paginationContainer.appendChild(prevBtn);
+
+        for (let i = 1; i <= totalPages; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.innerText = i;
+            if (i === currentPage) pageBtn.classList.add('active');
+            pageBtn.onclick = () => {
+                currentPage = i;
+                renderTable();
+            };
+            paginationContainer.appendChild(pageBtn);
+        }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.innerText = '다음';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => {
+            currentPage++;
+            renderTable();
+        };
+        paginationContainer.appendChild(nextBtn);
+    }
+
+    window.onload = () => {
+        fetchSheetData();
+        setInterval(fetchSheetData, 10000); 
+    };
+</script>
+
+</body>
+</html>
