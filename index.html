@@ -31,7 +31,6 @@
             color: #7f8c8d;
             margin-bottom: 15px;
         }
-        /* 🎯 상단 컨트롤 버튼 및 마감번호 레이아웃 */
         .control-panel {
             display: flex;
             justify-content: center;
@@ -209,35 +208,26 @@
         const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
         if (lines.length === 0) return;
 
-        // 1. 전체 헤더 파싱 (A1, B1, C1... N1...)
+        // 전체 행 데이터 파싱
         const rawHeaders = splitCSVLine(lines[0]);
         
-        // 🎯 [N1 셀 값 추출 로직] 
-        // 알파벳 'N'은 14번째 열이므로 인덱스로는 13입니다.
-        const n1Index = 13; 
+        // 🎯 [수정] 첫 번째 행(lines[0])의 14번째 컬럼(인덱스 13)에서 마감번호 직접 추출
+        const targetColumnIndex = 13; 
         let closeNumber = '없음';
         
-        // 데이터가 들어있는 첫 번째 행(시트의 2행)에서 N열의 값을 가져옵니다.
-        if (lines[1]) {
-            const firstRowData = splitCSVLine(lines[1]);
-            if (firstRowData[n1Index]) {
-                closeNumber = firstRowData[n1Index];
-            }
+        if (rawHeaders[targetColumnIndex]) {
+            closeNumber = rawHeaders[targetColumnIndex];
         }
-        // 화면에 주문마감번호 업데이트
         document.getElementById('close-number-display').innerText = `📢 주문마감번호: ${closeNumber}`;
 
-        // 2. 대시보드 테이블용 헤더 정의 (주문마감용 N열 및 불필요한 공백열 필터링)
-        // 시트 구조에 따라 N열 앞까지만 테이블로 노출시키기 위해 자릅니다.
-        // 만약 메뉴가 M열까지만 있다면 자동으로 잘라줍니다.
-        headers = rawHeaders.slice(0, n1Index).filter(h => h.length > 0);
+        // 테이블 출력용 헤더 (글자가 있는 전체 컬럼)
+        headers = rawHeaders.filter(h => h.length > 0);
         
         orderData = [];
         for (let i = 1; i < lines.length; i++) {
             const currentLine = splitCSVLine(lines[i]);
             if (currentLine[0]) { 
-                // 데이터 행도 헤더 크기만큼 똑같이 잘라서 유효한 주문 정보만 배열에 삽입
-                orderData.push(currentLine.slice(0, headers.length));
+                orderData.push(currentLine);
             }
         }
         orderData.reverse(); 
@@ -271,8 +261,9 @@
         pageData.forEach(row => {
             const tr = document.createElement('tr');
             
-            row.forEach((cell, index) => {
+            headers.forEach((header, index) => {
                 const td = document.createElement('td');
+                const cell = row[index] || ''; 
                 const value = cell.trim();
                 
                 if (index > 0 && value && value !== '0' && !isNaN(value)) {
