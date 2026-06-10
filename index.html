@@ -28,16 +28,19 @@
         .refresh-btn {
             display: block;
             margin: 0 auto 20px auto;
-            padding: 10px 20px;
-            background-color: #3498db;
+            padding: 12px 24px;
+            background-color: #e67e22;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background 0.2s;
         }
         .refresh-btn:hover {
-            background-color: #2980b9;
+            background-color: #d35400;
         }
         table {
             width: 100%;
@@ -52,9 +55,14 @@
         th {
             background-color: #2c3e50;
             color: white;
+            position: sticky;
+            top: 0;
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f2f6;
         }
         .empty-cell {
             color: #ccc;
@@ -63,28 +71,7 @@
             font-weight: bold;
             color: #e74c3c;
             background-color: #ffe6e6;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            gap: 5px;
-        }
-        .pagination button {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            background-color: white;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .pagination button.active {
-            background-color: #2c3e50;
-            color: white;
-            border-color: #2c3e50;
-        }
-        .pagination button:disabled {
-            background-color: #eee;
-            cursor: not-allowed;
+            font-size: 1.1em;
         }
         .loading {
             text-align: center;
@@ -105,27 +92,21 @@
     <div style="overflow-x: auto;">
         <table id="dashboard-table" style="display: none;">
             <thead>
-                <tr id="table-header">
-                    </tr>
+                <tr id="table-header"></tr>
             </thead>
-            <tbody id="table-body">
-                </tbody>
+            <tbody id="table-body"></tbody>
         </table>
     </div>
-
-    <div class="pagination" id="pagination"></div>
 </div>
 
 <script>
-    // ⚠️ 중요: 구글 시트에서 '웹에 게시' 후 생성된 CSV 링크를 아래에 붙여넣으세요.
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pubhtml';
+    // 구글 시트 웹 게시 CSV URL
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pub?output=csv';
     
     let orderData = [];
     let headers = [];
-    let currentPage = 1;
-    const itemsPerPage = 15;
+    const maxItems = 15; // 화면에 보여줄 최대 데이터 개수
 
-    // 구글 시트에서 데이터 가져오기
     async function fetchSheetData() {
         const loadingEl = document.getElementById('loading');
         const tableEl = document.getElementById('dashboard-table');
@@ -134,7 +115,6 @@
         tableEl.style.display = 'none';
 
         try {
-            // 캐시 방지를 위해 랜덤 쿼리 스트링 추가
             const response = await fetch(`${SHEET_CSV_URL}&t=${new Date().getTime()}`);
             const data = await response.text();
             
@@ -150,33 +130,65 @@
         }
     }
 
-    // CSV 텍스트 파싱 처리
-    function parseCSV(text) {
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-        if (lines.length === 0) return;
+    // 콤마(,) 및 큰따옴표가 포함된 데이터를 안전하게 파싱하는 함수
+    function parseCSVRow(text) {
+        const result = [];
+        let row = [];
+        let insideQuote = false;
+        let entry = '';
 
-        // 첫 줄은 컬럼 제목 (No, 메뉴1, 메뉴2...)
-        headers = lines[0].split(',');
-        
-        // 데이터 배열 초기화 (최신 주문이 위로 오도록 역순 정렬 원할 경우 처리 가능)
-        orderData = [];
-        for (let i = 1; i < lines.length; i++) {
-            const currentLine = lines[i].split(',');
-            if (currentLine[0]) { // No 값이 있는 경우만 추가
-                orderData.push(currentLine);
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const nextChar = text[i+1];
+
+            if (char === '"') {
+                if (insideQuote && nextChar === '"') {
+                    entry += '"';
+                    i++;
+                } else {
+                    insideQuote = !insideQuote;
+                }
+            } else if (char === ',' && !insideQuote) {
+                row.push(entry);
+                entry = '';
+            } else if ((char === '\r' || char === '\n') && !insideQuote) {
+                if (char === '\r' && nextChar === '\n') i++;
+                row.push(entry);
+                result.push(row);
+                row = [];
+                entry = '';
+            } else {
+                entry += char;
             }
         }
-        
-        // 기본적으로 주문 번호(No)가 큰 최신 주문이 먼저 보이게 하려면 아래 주석을 해제하세요.
-        // orderData.reverse(); 
+        if (entry || row.length > 0) {
+            row.push(entry);
+            result.push(row);
+        }
+        return result;
     }
 
-    // 테이블 헤더 및 데이터 렌더링
+    function parseCSV(text) {
+        const lines = parseCSVRow(text).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
+        if (lines.length === 0) return;
+
+        headers = lines[0].map(h => h.trim());
+        
+        orderData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const currentLine = lines[i];
+            // 두 번째 열(index: 1)이 'No'이므로, 두 번째 열에 값이 있는지 확인합니다.
+            if (currentLine[1] && currentLine[1].trim() !== '') { 
+                orderData.push(currentLine.map(cell => cell.trim()));
+            }
+        }
+    }
+
     function renderTable() {
         const headerRow = document.getElementById('table-header');
         const tableBody = document.getElementById('table-body');
         
-        // 헤더 생성
+        // 헤더 출력
         headerRow.innerHTML = '';
         headers.forEach(header => {
             const th = document.createElement('th');
@@ -184,31 +196,38 @@
             headerRow.appendChild(th);
         });
 
-        // 현재 페이지 데이터 계산
         tableBody.innerHTML = '';
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = Math.min(startIndex + itemsPerPage, orderData.length);
-        const pageData = orderData.slice(startIndex, endIndex);
 
-        // 데이터 행 생성
-        if (pageData.length === 0) {
+        // [핵심 변경] 마지막 데이터 기준 최근 15개 데이터만 슬라이싱 (오름차순 유지)
+        let displayData = [];
+        if (orderData.length > maxItems) {
+            displayData = orderData.slice(orderData.length - maxItems);
+        } else {
+            displayData = orderData;
+        }
+
+        if (displayData.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="${headers.length}">주문 내역이 없습니다.</td></tr>`;
             return;
         }
 
-        pageData.forEach(row => {
+        // 화면 렌더링 (순서대로 출력되므로 위에서부터 1, 2, 3... 혹은 26, 27, 28... 순 정렬)
+        displayData.forEach(row => {
             const tr = document.createElement('tr');
             
-            row.forEach((cell, index) => {
+            headers.forEach((_, index) => {
                 const td = document.createElement('td');
-                const value = cell.trim();
+                const value = row[index] ? row[index].trim() : '';
                 
-                // 1번 컬럼(No) 이외의 메뉴 칸에 숫자가 있으면 강조 표시
-                if (index > 0 && value && value !== '0' && !isNaN(value)) {
+                // 첫 번째 열(index: 0)과 두 번째 열(index: 1, No)은 단순 출력만 진행
+                const isNumber = value !== '' && !isNaN(value);
+                // 세 번째 열(index: 2)부터 숫자가 1 이상인 경우 주문 수량으로 인식하여 강조
+                const isOrderQuantity = index > 1 && isNumber && Number(value) > 0;
+
+                if (isOrderQuantity) {
                     td.innerText = value;
                     td.classList.add('has-value');
-                } else if (index > 0 && (value === '0' || !value)) {
-                    // 수량이 0이거나 빈 칸이면 흐리게 하이픈(-) 표시
+                } else if (index > 1 && (value === '0' || !value)) {
                     td.innerText = '-';
                     td.classList.add('empty-cell');
                 } else {
@@ -219,52 +238,8 @@
             });
             tableBody.appendChild(tr);
         });
-
-        renderPagination();
     }
 
-    // 페이지네이션 버튼 제어
-    function renderPagination() {
-        const paginationContainer = document.getElementById('pagination');
-        paginationContainer.innerHTML = '';
-
-        const totalPages = Math.ceil(orderData.length / itemsPerPage);
-        if (totalPages <= 1) return;
-
-        // 이전 페이지 버튼
-        const prevBtn = document.createElement('button');
-        prevBtn.innerText = '이전';
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.onclick = () => {
-            currentPage--;
-            renderTable();
-        };
-        paginationContainer.appendChild(prevBtn);
-
-        // 페이지 번호 버튼
-        for (let i = 1; i <= totalPages; i++) {
-            const pageBtn = document.createElement('button');
-            pageBtn.innerText = i;
-            if (i === currentPage) pageBtn.classList.add('active');
-            pageBtn.onclick = () => {
-                currentPage = i;
-                renderTable();
-            };
-            paginationContainer.appendChild(pageBtn);
-        }
-
-        // 다음 페이지 버튼
-        const nextBtn = document.createElement('button');
-        nextBtn.innerText = '다음';
-        nextBtn.disabled = currentPage === totalPages;
-        nextBtn.onclick = () => {
-            currentPage++;
-            renderTable();
-        };
-        paginationContainer.appendChild(nextBtn);
-    }
-
-    // 페이지 로드 시 구글 시트 데이터 호출
     window.onload = fetchSheetData;
 </script>
 
