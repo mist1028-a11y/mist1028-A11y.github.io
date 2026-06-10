@@ -208,10 +208,9 @@
         const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
         if (lines.length === 0) return;
 
-        // 전체 행 데이터 파싱
         const rawHeaders = splitCSVLine(lines[0]);
         
-        // 🎯 [수정] 첫 번째 행(lines[0])의 14번째 컬럼(인덱스 13)에서 마감번호 직접 추출
+        // 📢 첫 번째 행의 14번째 컬럼(인덱스 13, N1)에서 마감번호 추출
         const targetColumnIndex = 13; 
         let closeNumber = '없음';
         
@@ -220,14 +219,18 @@
         }
         document.getElementById('close-number-display').innerText = `📢 주문마감번호: ${closeNumber}`;
 
-        // 테이블 출력용 헤더 (글자가 있는 전체 컬럼)
-        headers = rawHeaders.filter(h => h.length > 0);
+        // 🎯 [수정] 13열과 14열(인덱스 12, 13)을 제외하고 테이블 헤더 정의
+        headers = rawHeaders
+            .filter((h, idx) => idx !== 12 && idx !== 13) // 13, 14열 제외
+            .filter(h => h.length > 0);
         
         orderData = [];
         for (let i = 1; i < lines.length; i++) {
             const currentLine = splitCSVLine(lines[i]);
             if (currentLine[0]) { 
-                orderData.push(currentLine);
+                // 🎯 [수정] 데이터 행도 동일하게 13, 14열 데이터를 걸러내고 저장
+                const filteredLine = currentLine.filter((_, idx) => idx !== 12 && idx !== 13);
+                orderData.push(filteredLine);
             }
         }
         orderData.reverse(); 
