@@ -3,47 +3,270 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>일일호프 관리 시스템</title>
+    <title>일일호프 주문현황 대시보드</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; padding: 40px 20px; background-color: #f8f9fa; }
-        h1 { color: #343a40; margin-bottom: 5px; }
-        .subtitle { color: #6c757d; font-size: 16px; margin-bottom: 25px; }
-        .notice-box { max-width: 320px; margin: 0 auto 30px auto; background-color: #ffffff; padding: 15px; border-radius: 8px; border-left: 5px solid #ffc107; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .notice-box p { margin: 5px 0; font-size: 14px; color: #495057; }
-        .menu-box { display: flex; flex-direction: column; max-width: 320px; margin: 0 auto; gap: 15px; }
-        .btn { display: block; padding: 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .btn:hover { background-color: #0056b3; }
-        .btn-sales { background-color: #28a745; }
-        .btn-sales:hover { background-color: #218838; }
-        .btn-stats { background-color: #17a2b8; }
-        .btn-stats:hover { background-color: #138496; }
-        .footer-text { margin-top: 50px; font-size: 14px; color: #868e96; font-weight: 500; }
-        .version-tag { display: inline-block; background-color: #e9ecef; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-family: monospace; color: #495057; margin-top: 5px; }
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .refresh-btn {
+            display: block;
+            margin: 0 auto 20px auto;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .empty-cell {
+            color: #ccc;
+        }
+        .has-value {
+            font-weight: bold;
+            color: #e74c3c;
+            background-color: #ffe6e6;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background-color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .pagination button.active {
+            background-color: #2c3e50;
+            color: white;
+            border-color: #2c3e50;
+        }
+        .pagination button:disabled {
+            background-color: #eee;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #7f8c8d;
+            padding: 40px 0;
+        }
     </style>
 </head>
 <body>
 
-    <h1>🎈 일일호프 관리 시스템</h1>
-    <div class="subtitle">Supabase 실시간 연동 (서버리스 패키지)</div>
-    <hr style="max-width: 350px; border: 0; height: 1px; background: #dee2e6; margin-bottom: 25px;">
-
-    <div class="notice-box">
-        <p style="font-weight: bold; color: #212529; margin-bottom: 8px;">💡 운영 요령 안내</p>
-        <p>• <b>주문(입고):</b> 홀에서 주문을 받으면 즉시 등록</p>
-        <p>• <b>판매(출고):</b> 주방에서 안주/음료가 나갈 때 등록</p>
-        <p>• <b>현황:</b> 미결제 잔여 수량을 실시간 확인 및 정산</p>
+<div class="container">
+    <h1>🍻 일일호프 주문현황</h1>
+    <button class="refresh-btn" onclick="fetchSheetData()">🔄 새로고침</button>
+    
+    <div id="loading" class="loading">주문 데이터를 불러오는 중입니다...</div>
+    
+    <div style="overflow-x: auto;">
+        <table id="dashboard-table" style="display: none;">
+            <thead>
+                <tr id="table-header">
+                    </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
     </div>
 
-    <div class="menu-box">
-        <a href="order.html" class="btn">📝 주문하기 (입고 관리)</a>
-        <a href="sales.html" class="btn btn-sales">💰 판매하기 (출고 관리)</a>
-        <a href="stats.html" class="btn btn-stats">📊 재고 및 정산 현황판</a>
-    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
 
-    <div class="footer-text">
-        © 2026 일일호프 캘리브레이션 System.<br>
-        <span class="version-tag">v0.3 by HJ</span>
-    </div>
+<script>
+    // ⚠️ 중요: 구글 시트에서 '웹에 게시' 후 생성된 CSV 링크를 아래에 붙여넣으세요.
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzFxsQt0Jf-KTEfxVp8yeW__fMJc2lI5dEGHNfxE2JfwYB-R7xJW66-QmQs6w-at5_vWUwqWjZYCdF/pubhtml';
+    
+    let orderData = [];
+    let headers = [];
+    let currentPage = 1;
+    const itemsPerPage = 15;
+
+    // 구글 시트에서 데이터 가져오기
+    async function fetchSheetData() {
+        const loadingEl = document.getElementById('loading');
+        const tableEl = document.getElementById('dashboard-table');
+        
+        loadingEl.style.display = 'block';
+        tableEl.style.display = 'none';
+
+        try {
+            // 캐시 방지를 위해 랜덤 쿼리 스트링 추가
+            const response = await fetch(`${SHEET_CSV_URL}&t=${new Date().getTime()}`);
+            const data = await response.text();
+            
+            parseCSV(data);
+            
+            loadingEl.style.display = 'none';
+            tableEl.style.display = 'table';
+            
+            renderTable();
+        } catch (error) {
+            console.error('데이터를 불러오는 중 오류 발생:', error);
+            loadingEl.innerText = '⚠️ 데이터를 불러오지 못했습니다. 시트 주소 및 웹 게시 설정을 확인해주세요.';
+        }
+    }
+
+    // CSV 텍스트 파싱 처리
+    function parseCSV(text) {
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        if (lines.length === 0) return;
+
+        // 첫 줄은 컬럼 제목 (No, 메뉴1, 메뉴2...)
+        headers = lines[0].split(',');
+        
+        // 데이터 배열 초기화 (최신 주문이 위로 오도록 역순 정렬 원할 경우 처리 가능)
+        orderData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const currentLine = lines[i].split(',');
+            if (currentLine[0]) { // No 값이 있는 경우만 추가
+                orderData.push(currentLine);
+            }
+        }
+        
+        // 기본적으로 주문 번호(No)가 큰 최신 주문이 먼저 보이게 하려면 아래 주석을 해제하세요.
+        // orderData.reverse(); 
+    }
+
+    // 테이블 헤더 및 데이터 렌더링
+    function renderTable() {
+        const headerRow = document.getElementById('table-header');
+        const tableBody = document.getElementById('table-body');
+        
+        // 헤더 생성
+        headerRow.innerHTML = '';
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.innerText = header;
+            headerRow.appendChild(th);
+        });
+
+        // 현재 페이지 데이터 계산
+        tableBody.innerHTML = '';
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, orderData.length);
+        const pageData = orderData.slice(startIndex, endIndex);
+
+        // 데이터 행 생성
+        if (pageData.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="${headers.length}">주문 내역이 없습니다.</td></tr>`;
+            return;
+        }
+
+        pageData.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            row.forEach((cell, index) => {
+                const td = document.createElement('td');
+                const value = cell.trim();
+                
+                // 1번 컬럼(No) 이외의 메뉴 칸에 숫자가 있으면 강조 표시
+                if (index > 0 && value && value !== '0' && !isNaN(value)) {
+                    td.innerText = value;
+                    td.classList.add('has-value');
+                } else if (index > 0 && (value === '0' || !value)) {
+                    // 수량이 0이거나 빈 칸이면 흐리게 하이픈(-) 표시
+                    td.innerText = '-';
+                    td.classList.add('empty-cell');
+                } else {
+                    td.innerText = value;
+                }
+                
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+
+        renderPagination();
+    }
+
+    // 페이지네이션 버튼 제어
+    function renderPagination() {
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';
+
+        const totalPages = Math.ceil(orderData.length / itemsPerPage);
+        if (totalPages <= 1) return;
+
+        // 이전 페이지 버튼
+        const prevBtn = document.createElement('button');
+        prevBtn.innerText = '이전';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => {
+            currentPage--;
+            renderTable();
+        };
+        paginationContainer.appendChild(prevBtn);
+
+        // 페이지 번호 버튼
+        for (let i = 1; i <= totalPages; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.innerText = i;
+            if (i === currentPage) pageBtn.classList.add('active');
+            pageBtn.onclick = () => {
+                currentPage = i;
+                renderTable();
+            };
+            paginationContainer.appendChild(pageBtn);
+        }
+
+        // 다음 페이지 버튼
+        const nextBtn = document.createElement('button');
+        nextBtn.innerText = '다음';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => {
+            currentPage++;
+            renderTable();
+        };
+        paginationContainer.appendChild(nextBtn);
+    }
+
+    // 페이지 로드 시 구글 시트 데이터 호출
+    window.onload = fetchSheetData;
+</script>
 
 </body>
 </html>
